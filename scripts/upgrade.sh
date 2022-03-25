@@ -113,6 +113,8 @@ function main() {
     download_util_binaries
     get_machine_id
     merge_yaml_specs
+    parse_yaml_into_bash_variables
+    local finalK8sVersion=${KUBERNETES_VERSION}
     apply_bash_flag_overrides "$@"
     parse_yaml_into_bash_variables
     parse_kubernetes_target_version
@@ -131,7 +133,23 @@ function main() {
     ${K8S_DISTRO}_addon_for_each addon_join
     outro
     package_cleanup
-    uninstall_docker
+
+
+    local kubeletVersion="$(kubelet_version)"
+    semverParse "$kubeletVersion"
+    local kubeletMinor="$minor"
+    local kubeletPatch="$patch"
+    semverParse "$finalK8sVersion"
+    local finalMinor="$minor"
+    local finalPatch="$patch"
+    echo "kubelet version ${kubeletVersion} minor: ${kubeletMinor} patch: ${kubeletPatch} target k8s: ${finalK8sVersion}"
+    if [ "$kubeletMinor" -eq "$finalMinor" ] && [ "$kubeletPatch" -eq "$finalPatch" ] && [ "$HA_CLUSTER" = "1" ]; then 
+        echo "we are at final update"
+        uninstall_docker
+    elif [ "$HA_CLUSTER" != "1" ]; then
+        echo "non HA"
+        uninstall_docker
+    fi
 
     popd_install_directory
 }
